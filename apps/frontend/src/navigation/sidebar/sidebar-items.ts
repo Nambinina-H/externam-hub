@@ -1,5 +1,16 @@
 import type { UserRole } from "@externam/shared";
-import { Banknote, Fingerprint, type LucideIcon, Mail, Megaphone, Settings, Shield, Users } from "lucide-react";
+import {
+  Banknote,
+  Clapperboard,
+  Fingerprint,
+  type LucideIcon,
+  Mail,
+  Megaphone,
+  ScrollText,
+  Settings,
+  Shield,
+  Users,
+} from "lucide-react";
 
 export interface NavSubItem {
   title: string;
@@ -59,6 +70,19 @@ export const spaces: NavSpace[] = [
     ],
   },
   {
+    id: "scenariste",
+    label: "Scénariste",
+    icon: Clapperboard,
+    roles: [...FULL_ACCESS, "SCENARISTE"],
+    groups: [
+      {
+        id: 1,
+        label: "Scénarios",
+        items: [{ title: "Scénarios", url: "/dashboard/scenarios", icon: ScrollText }],
+      },
+    ],
+  },
+  {
     id: "administration",
     label: "Administration",
     icon: Shield,
@@ -89,8 +113,9 @@ export function spaceForPath(path: string): NavSpace | undefined {
   );
 }
 
-/** Page d'accueil après connexion, selon le rôle : admin → gestion des utilisateurs, sinon → clients. */
+/** Page d'accueil après connexion, selon le rôle. */
 export function landingForRole(role: UserRole | undefined): string {
   if (role === "SUPERADMIN" || role === "ADMIN") return "/dashboard/users";
+  if (role === "SCENARISTE") return "/dashboard/scenarios";
   return "/dashboard/clients";
 }

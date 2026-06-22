@@ -6,3 +6,4 @@ class UserRoleEnum(str, enum.Enum):
     ADMIN = "ADMIN"
     SUPERADMIN = "SUPERADMIN"
     META_ADS_EXPERT = "META_ADS_EXPERT"
+    SCENARISTE = "SCENARISTE"

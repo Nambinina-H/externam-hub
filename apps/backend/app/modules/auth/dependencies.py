@@ -54,6 +54,9 @@ require_superadmin = require_roles(UserRoleEnum.SUPERADMIN.value, UserRoleEnum.A
 require_meta_ads = require_roles(
     UserRoleEnum.SUPERADMIN.value, UserRoleEnum.ADMIN.value, UserRoleEnum.META_ADS_EXPERT.value
 )
+require_scenariste = require_roles(
+    UserRoleEnum.SUPERADMIN.value, UserRoleEnum.ADMIN.value, UserRoleEnum.SCENARISTE.value
+)
 # Rétro-compat : ancien nom encore importé par certains modules.
 require_admin_or_superadmin = require_superadmin
 

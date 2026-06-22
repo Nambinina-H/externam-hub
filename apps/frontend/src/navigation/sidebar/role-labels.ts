@@ -5,5 +5,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   SUPERADMIN: "Super admin",
   ADMIN: "Admin",
   META_ADS_EXPERT: "Expert Meta Ads",
+  SCENARISTE: "Scénariste",
   USER: "Utilisateur",
 };

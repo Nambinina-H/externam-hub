@@ -3,9 +3,8 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
 
-import { toast } from "sonner";
-
 import type { AuthUser, UserRole } from "@externam/shared";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +16,7 @@ import { updateUser } from "@/services/users";
 // Rôles attribuables pour l'instant (réutilisé par la page Utilisateurs).
 export const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "META_ADS_EXPERT", label: ROLE_LABELS.META_ADS_EXPERT },
+  { value: "SCENARISTE", label: ROLE_LABELS.SCENARISTE },
   { value: "SUPERADMIN", label: ROLE_LABELS.SUPERADMIN },
 ];
 export const ROLE_ITEMS = ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label }));
@@ -116,12 +116,7 @@ export function UserEditDialog({ open, onOpenChange, user, isSelf, onSaved }: Pr
             <label htmlFor="ue-role" className="font-medium text-sm">
               Rôle
             </label>
-            <Select
-              value={role}
-              onValueChange={(v) => setRole(v as UserRole)}
-              items={ROLE_ITEMS}
-              disabled={isSelf}
-            >
+            <Select value={role} onValueChange={(v) => setRole(v as UserRole)} items={ROLE_ITEMS} disabled={isSelf}>
               <SelectTrigger id="ue-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
