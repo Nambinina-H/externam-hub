@@ -1,0 +1,17 @@
+{
+  "name": "@externam/backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Externam Hub FastAPI backend (managed by Turborepo via shell scripts)",
+  "scripts": {
+    "dev": "python run.py",
+    "start": "python run.py",
+    "build": "python -c \"print('No build step for the Python API')\"",
+    "lint": "ruff check app tests",
+    "format": "ruff format app tests",
+    "test": "pytest",
+    "migrate": "alembic upgrade head",
+    "makemigration": "alembic revision --autogenerate -m",
+    "keys": "python scripts/generate_keys.py"
+  }
+}

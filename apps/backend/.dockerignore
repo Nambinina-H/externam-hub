@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+node_modules/
+# Secrets : jamais dans l'image (montés en volume sur VPS, ou en variable sur PaaS)
+keys/
+*.pem
+.env*

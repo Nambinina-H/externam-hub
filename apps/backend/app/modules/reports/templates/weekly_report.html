@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>Rapport hebdomadaire Meta Ads</title>
+<!--[if mso]><style>table,td{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}</style><![endif]-->
+<style>
+  @media only screen and (max-width:600px){
+    .container{width:100% !important;}
+    .px{padding-left:14px !important;padding-right:14px !important;}
+    .day-cell{font-size:11px !important;padding:7px 4px !important;}
+    .h1{font-size:20px !important;}
+    .hidem{display:none !important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#e9edf1;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Reporting Meta Ads hebdomadaire — données complètes.</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#e9edf1;">
+<tr><td align="center" style="padding:20px 10px;">
+
+<table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background-color:#ffffff;border:1px solid #d4dae1;">
+
+  <!-- INTRO (éditable — texte normal) -->
+  <tr><td class="px" style="padding:26px 24px 8px 24px;font-size:14px;line-height:1.6;color:#333333;white-space:pre-line;">{{ intro }}</td></tr>
+
+  {% for c in campaigns %}
+  <!-- CAMPAGNE : titre -->
+  <tr><td class="px" style="padding:22px 24px 0 24px;">
+    <span style="font-size:15px;font-weight:bold;color:#16222e;">Campagne : {{ c.name }}</span>
+  </td></tr>
+
+  <!-- TABLE : 7 jours + ligne de synthèse -->
+  <tr><td class="px" style="padding:10px 24px 0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d4dae1;border-collapse:collapse;">
+      <tr style="background-color:#16222e;">
+        <td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:left;">Jour</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:right;">Dépense</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:right;">Impressions</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:right;">Clics</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:right;">CTR</td>
+        {% if c.result_col %}<td class="day-cell" style="padding:8px 6px;font-size:11px;color:#ffffff;text-align:right;">{{ c.result_col }}</td>{% endif %}
+      </tr>
+      {% for d in c.days %}
+      <tr{% if loop.index0 % 2 == 1 %} style="background-color:#f6f8fa;"{% endif %}>
+        <td class="day-cell" style="padding:8px 6px;font-size:12px;color:#3a4754;border-top:1px solid #e4e8ec;">{{ d.label }}</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:12px;color:#3a4754;text-align:right;border-top:1px solid #e4e8ec;">{{ d.spend }}</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:12px;color:#3a4754;text-align:right;border-top:1px solid #e4e8ec;">{{ d.impressions }}</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:12px;color:#3a4754;text-align:right;border-top:1px solid #e4e8ec;">{{ d.clicks }}</td>
+        <td class="day-cell" style="padding:8px 6px;font-size:12px;color:#3a4754;text-align:right;border-top:1px solid #e4e8ec;">{{ d.ctr }}</td>
+        {% if c.result_col %}<td class="day-cell" style="padding:8px 6px;font-size:12px;font-weight:bold;color:#16222e;text-align:right;border-top:1px solid #e4e8ec;">{{ d.result }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+      <tr style="background-color:#16222e;">
+        <td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;">TOTAL</td>
+        <td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{{ c.spend }}</td>
+        <td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{{ c.impressions }}</td>
+        <td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{{ c.clicks }}</td>
+        <td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{{ c.unique_ctr }}</td>
+        {% if c.result_col %}<td class="day-cell" style="padding:9px 6px;font-size:12px;font-weight:bold;color:#ffffff;text-align:right;">{{ c.result_total }}</td>{% endif %}
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- BANDEAU indicateurs -->
+  <tr><td class="px" style="padding:8px 24px 0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef4f9;border:1px solid #cfe0ee;border-radius:4px;">
+      <tr>
+        {% if c.budget %}<td style="padding:10px 12px;font-size:12px;color:#3a4754;border-right:1px solid #d9e6f1;">Budget&nbsp;: <b style="color:#16222e;">{{ c.budget }}</b></td>{% endif %}
+        <td style="padding:10px 12px;font-size:12px;color:#3a4754;border-right:1px solid #d9e6f1;">CPC&nbsp;: <b style="color:#16222e;">{{ c.cpc }}</b></td>
+        {% if c.cost_value %}<td style="padding:10px 12px;font-size:12px;color:#3a4754;">{{ c.cost_label }}&nbsp;: <b style="color:#16222e;">{{ c.cost_value }}</b></td>{% endif %}
+        <td align="right" style="padding:10px 12px;font-size:12px;color:#0B5FA5;font-weight:bold;">{% if c.roas %}ROAS {{ c.roas }}{% else %}{{ c.result_main }}{% endif %}</td>
+      </tr>
+    </table>
+  </td></tr>
+  {% else %}
+  <tr><td class="px" style="padding:18px 24px;font-size:13px;color:#5b6b7a;">Aucune campagne gérée n'est sélectionnée pour ce client.</td></tr>
+  {% endfor %}
+
+  <!-- NOTE DE CLÔTURE (éditable — texte normal) -->
+  <tr><td class="px" style="padding:20px 24px {% if signature %}6px{% else %}28px{% endif %} 24px;font-size:14px;line-height:1.6;color:#333333;white-space:pre-line;">{{ closing }}</td></tr>
+
+  {% if signature %}
+  <!-- SIGNATURE (texte libre — séparateur « -- » ajouté automatiquement) -->
+  <tr><td class="px" style="padding:4px 24px 28px 24px;font-size:13px;line-height:1.5;color:#777777;white-space:pre-line;">--
+{{ signature }}</td></tr>
+  {% endif %}
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

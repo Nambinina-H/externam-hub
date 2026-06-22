@@ -1,0 +1,30 @@
+{
+  "name": "externam-hub",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "dev:frontend": "npm --workspace @externam/frontend run dev",
+    "dev:backend": "npm --workspace @externam/backend run dev",
+    "test:backend": "npm --workspace @externam/backend run test",
+    "dev:services": "docker compose up -d postgres",
+    "dev:all": "npm run dev:services && turbo run dev",
+    "db:revision": "npm --workspace @externam/backend run makemigration --",
+    "db:migrate": "npm --workspace @externam/backend run migrate",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "turbo": "^2.8.20"
+  }
+}

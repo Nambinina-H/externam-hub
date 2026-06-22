@@ -1,0 +1,77 @@
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: externam_frontend
+    ports:
+      - "${FRONT_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      API_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - backend
+    networks:
+      - externam
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: externam_backend
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_ADMIN_FIRSTNAME: ${SEED_ADMIN_FIRSTNAME}
+      SEED_ADMIN_LASTNAME: ${SEED_ADMIN_LASTNAME}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH}
+      ACCESS_TOKEN_EXPIRATION: ${ACCESS_TOKEN_EXPIRATION}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION}
+      BASE_URL: ${BASE_URL}
+      FRONT_BASE_URL: ${FRONT_BASE_URL}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      SENTRY_URL: ${SENTRY_URL}
+    volumes:
+      - ./apps/backend/keys:/app/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - externam
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: externam_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - externam
+
+networks:
+  externam:
+    driver: bridge
+
+volumes:
+  postgres_data:

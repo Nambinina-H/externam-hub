@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Turbo
+.turbo
+
+# Next.js
+apps/frontend/.next/
+apps/frontend/out/
+apps/frontend/build/
+apps/frontend/next-env.d.ts
+
+# Production
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Bases SQLite locales (données clients réelles — NE PAS committer)
+*.db
+*.sqlite
+*.sqlite3
+
+# Aperçus de rapport générés
+apps/backend/apercu_rapport.html
+apps/backend/*.preview.html
+
+# RSA keys & secrets (NEVER commit)
+apps/backend/keys/
+*.pem
+
+# Environment
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Docker volumes
+postgres_data/
