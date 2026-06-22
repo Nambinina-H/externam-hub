@@ -49,6 +49,9 @@ export default function ClientsPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dayFilter, setDayFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const refreshKey = useClientsStore((s) => s.refreshKey);
 
   async function refresh() {
@@ -75,6 +78,15 @@ export default function ClientsPage() {
   useEffect(() => {
     void refresh();
   }, [refreshKey]);
+
+  // Purge la sélection des clients qui n'existent plus (après suppression/rechargement).
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(clients.map((c) => c.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [clients]);
 
   async function onChangeDay(client: Client, value: DayOfWeek) {
     try {
@@ -131,6 +143,44 @@ export default function ClientsPage() {
     );
   });
 
+  // Sélection multiple (sur la liste filtrée).
+  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) for (const c of filtered) next.delete(c.id);
+      else for (const c of filtered) next.add(c.id);
+      return next;
+    });
+  }
+
+  async function onBulkDelete() {
+    const ids = [...selectedIds];
+    setBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(ids.map((id) => deleteClient(id)));
+      const okIds = ids.filter((_, i) => results[i].status === "fulfilled");
+      const failed = ids.length - okIds.length;
+      setClients((prev) => prev.filter((c) => !okIds.includes(c.id)));
+      setSelectedIds(new Set());
+      if (failed > 0) toast.error(`${okIds.length} supprimé(s), ${failed} en échec.`);
+      else toast.success(`${okIds.length} client(s) supprimé(s)`);
+    } finally {
+      setBulkDeleting(false);
+      setBulkConfirm(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -180,15 +230,31 @@ export default function ClientsPage() {
             ))}
           </SelectContent>
         </Select>
-        <span className="ml-auto text-muted-foreground text-sm">
-          {filtered.length} / {clients.length}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {selectedIds.size > 0 ? (
+            <Button variant="destructive" size="sm" onClick={() => setBulkConfirm(true)} disabled={bulkDeleting}>
+              <Trash2 className="size-4" />
+              Supprimer ({selectedIds.size})
+            </Button>
+          ) : null}
+          <span className="text-muted-foreground text-sm">
+            {filtered.length} / {clients.length}
+          </span>
+        </div>
       </div>
 
       <div className="rounded-xl border">
         <Table containerClassName="max-h-[33rem] overflow-y-auto">
           <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-background">
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allFilteredSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Tout sélectionner"
+                  disabled={filtered.length === 0}
+                />
+              </TableHead>
               <TableHead>Nom</TableHead>
               <TableHead>Entreprise</TableHead>
               <TableHead>Email</TableHead>
@@ -203,6 +269,9 @@ export default function ClientsPage() {
             {loading ? (
               Array.from({ length: 10 }, (_, i) => i).map((i) => (
                 <TableRow key={`client-skeleton-${i}`}>
+                  <TableCell>
+                    <Skeleton className="size-4" />
+                  </TableCell>
                   <TableCell>
                     <Skeleton className="h-4 w-28" />
                   </TableCell>
@@ -231,19 +300,30 @@ export default function ClientsPage() {
               ))
             ) : clients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   Aucun client. Ajoute-en un via le bouton + en haut, ou importe un CSV.
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   Aucun client ne correspond à la recherche.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((client) => (
-                <TableRow key={client.id} className="group/row">
+                <TableRow
+                  key={client.id}
+                  className="group/row"
+                  data-state={selectedIds.has(client.id) ? "selected" : undefined}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(client.id)}
+                      onCheckedChange={() => toggleSelect(client.id)}
+                      aria-label={`Sélectionner ${client.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell className="text-muted-foreground">{client.company ?? "—"}</TableCell>
                   <TableCell>
@@ -286,7 +366,7 @@ export default function ClientsPage() {
                       ? new Date(client.last_report_sent_at).toLocaleDateString("fr-FR")
                       : "—"}
                   </TableCell>
-                  <TableCell className="sticky right-0 z-10 border-l bg-background text-right group-hover/row:bg-muted/50">
+                  <TableCell className="sticky right-0 z-10 border-l bg-background text-right group-hover/row:bg-muted/50 group-data-[state=selected]/row:bg-muted">
                     <div className="flex justify-end gap-2">
                       <Button
                         size="icon-sm"
@@ -337,6 +417,23 @@ export default function ClientsPage() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={confirmDelete}>
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkConfirm} onOpenChange={(o) => !bulkDeleting && setBulkConfirm(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer {selectedIds.size} client(s) ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Les clients sélectionnés seront définitivement supprimés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={onBulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? "Suppression…" : "Supprimer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

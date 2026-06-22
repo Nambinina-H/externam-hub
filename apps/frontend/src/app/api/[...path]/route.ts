@@ -51,7 +51,9 @@ async function forward(req: NextRequest, path: string[]) {
   }
 
   const data = await res.text();
-  return new NextResponse(data, {
+  // Un statut « sans corps » (204/205/304) interdit tout body, même une chaîne vide,
+  // sinon la construction de la Response lève une TypeError (→ 500 trompeur côté client).
+  return new NextResponse(data || null, {
     status: res.status,
     headers: { "Content-Type": res.headers.get("content-type") ?? "application/json" },
   });
