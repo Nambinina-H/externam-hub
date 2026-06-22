@@ -43,6 +43,11 @@ class PortfolioRepository:
     def add(self, obj) -> None:
         self.db.add(obj)
 
+    def flush(self) -> None:
+        """Pousse les INSERT en attente vers la base (sans committer) — utile pour respecter
+        l'ordre des clés étrangères (portefeuilles avant comptes)."""
+        self.db.flush()
+
     def commit(self) -> None:
         try:
             self.db.commit()

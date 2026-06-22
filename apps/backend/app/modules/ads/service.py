@@ -50,6 +50,7 @@ def sync_portfolios(repo: PortfolioRepository, client, source_business_id: str |
     seen_accounts: set[str] = set()
     p_created = p_updated = a_created = a_updated = 0
 
+    # 1) Portefeuilles d'abord : les comptes les référencent via clé étrangère.
     for group in groups:
         business_id = group.get("id") or _UNLINKED
         name = group.get("name") or "(non rattaché à un portefeuille)"
@@ -67,6 +68,13 @@ def sync_portfolios(repo: PortfolioRepository, client, source_business_id: str |
             portfolio.removed_at = None
             p_updated += 1
 
+    # Insère les portefeuilles AVANT les comptes (sinon ForeignKeyViolation sur Postgres,
+    # où les FK sont appliquées — contrairement à SQLite qui les ignore par défaut).
+    repo.flush()
+
+    # 2) Comptes ensuite.
+    for group in groups:
+        business_id = group.get("id") or _UNLINKED
         for raw in group.get("accounts") or []:
             account_id = raw.get("id")
             if not account_id:

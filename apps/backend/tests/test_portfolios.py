@@ -86,3 +86,29 @@ def test_sync_is_idempotent(db_session):
     assert result["portfolios"]["removed"] == 0
     assert result["accounts"]["removed"] == 0
     assert len(service.list_portfolios(repo)["portfolios"]) == 2
+
+
+def test_sync_respects_fk_order_like_postgres():
+    """Régression : Postgres APPLIQUE la FK compte -> portefeuille. La synchro doit donc insérer
+    les portefeuilles avant les comptes. SQLite n'applique pas les FK par défaut (d'où le bug passé
+    inaperçu en local) — on les active ici pour reproduire le comportement Postgres."""
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import Session
+
+    from app.db.base import Base
+
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def _fk_on(dbapi_conn, _rec):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        repo = PortfolioRepository(session)
+        # Sans le flush des portefeuilles avant les comptes, ceci lèverait une IntegrityError (FK).
+        result = service.sync_portfolios(repo, FakeMetaClient(_RUN1), None)
+        assert result["accounts"]["created"] == 3
+        assert len(service.list_portfolios(repo)["portfolios"]) == 2
