@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import JSON, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -24,6 +24,8 @@ class AuditLog(Base):
     method: Mapped[str] = mapped_column(String(10))
     path: Mapped[str] = mapped_column(String(500))
     action: Mapped[str] = mapped_column(String(255))
+    # Diff champ par champ pour les modifications d'entités clés : [{field, before, after}].
+    changes: Mapped[list | None] = mapped_column(JSON, nullable=True)
     status_code: Mapped[int] = mapped_column(Integer)
     request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -12,7 +12,7 @@ from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 from app.db.base import engine
 from app.modules.ads.router import router as ads_router
-from app.modules.audit.recorder import is_auditable, record_audit, resolve_name
+from app.modules.audit.recorder import capture_before, is_auditable, record_audit
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.clients.router import router as clients_router
@@ -75,11 +75,10 @@ async def audit_requests(request: Request, call_next):
     """Journalise automatiquement chaque action mutante (best-effort, désactivé en test)."""
     method, path = request.method, request.url.path
     auditable = settings.environment != "test" and is_auditable(method, path)
-    # DELETE : on capture le nom de l'entité AVANT la requête (elle n'existera plus après).
-    pre_name = await run_in_threadpool(resolve_name, path) if (auditable and method == "DELETE") else None
+    # On capture l'état AVANT la requête (nom pour un DELETE, snapshot pour une modif → diff).
+    before = await run_in_threadpool(capture_before, method, path) if auditable else None
     response = await call_next(request)
     if auditable:
-        target_name = pre_name if method == "DELETE" else await run_in_threadpool(resolve_name, path)
         await run_in_threadpool(
             record_audit,
             method,
@@ -87,7 +86,7 @@ async def audit_requests(request: Request, call_next):
             response.status_code,
             response.headers.get("x-request-id"),
             request.headers.get("authorization"),
-            target_name,
+            before,
         )
     return response
 

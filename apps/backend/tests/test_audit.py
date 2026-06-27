@@ -37,6 +37,35 @@ def test_audit_humanize_labels():
     assert humanize("POST", "/api/reports/send-day") == "Envoi groupé des rapports"
 
 
+def test_audit_diff_computes_field_changes():
+    from app.modules.audit.recorder import _CLIENT_FIELDS, _diff
+    from app.modules.clients.models import Client
+
+    before = {
+        "name": "Acme",
+        "company": "Acme SA",
+        "contact_name": None,
+        "phone": None,
+        "emails": ["a@x.com"],
+        "meta_business_id": None,
+        "managed_campaign_ids": [],
+        "report_day": 0,
+        "is_active": True,
+    }
+    after = Client(
+        name="Acme",
+        company="Acme SA",
+        emails=["a@x.com"],
+        managed_campaign_ids=[],
+        report_day=4,
+        is_active=False,
+    )
+    by_field = {c["field"]: c for c in _diff(before, after, _CLIENT_FIELDS)}
+    assert "Nom" not in by_field  # inchangé
+    assert by_field["Jour d'envoi"] == {"field": "Jour d'envoi", "before": "Lundi", "after": "Vendredi"}
+    assert by_field["Actif"] == {"field": "Actif", "before": "Oui", "after": "Non"}
+
+
 def test_audit_admin_only(client, db_session):
     token = _admin_token(client, db_session)
     assert client.get("/api/audit", headers=_auth(token)).status_code == 200

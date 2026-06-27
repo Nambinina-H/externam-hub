@@ -1,8 +1,13 @@
 """Enregistrement automatique du journal d'audit (appelé par le middleware).
 
-Décode l'acteur depuis le JWT (best-effort, **sans requête DB**), résout le nom de l'entité
-concernée (client/utilisateur) quand c'est possible, dérive un libellé lisible, puis écrit une
-ligne `AuditLog`. Tout est best-effort : une erreur d'audit ne casse jamais la requête.
+Deux niveaux :
+- **Universel (middleware)** : toute action mutante est journalisée (qui / quoi / quand),
+  avec le nom de l'entité résolu best-effort.
+- **Sémantique (diff)** : pour les entités clés (client, utilisateur), on capture l'état
+  AVANT la requête puis on calcule le **diff champ par champ** après — ex. « jour d'envoi :
+  Lundi → Vendredi ». Le mot de passe n'est jamais lu ni stocké.
+
+Tout est best-effort : une erreur d'audit ne casse jamais la requête.
 """
 
 import logging
@@ -17,8 +22,10 @@ logger = logging.getLogger("audit")
 
 # Seules les actions qui MODIFIENT l'état sont journalisées (les lectures GET sont trop bruyantes).
 AUDITED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_UPDATE_METHODS = {"PATCH", "PUT"}
 
 _VERBS = {"POST": "Création", "PUT": "Modification", "PATCH": "Modification", "DELETE": "Suppression"}
+_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
 # Ressource (1er segment) -> nom singulier FR pour le libellé.
 _RESOURCE_FR = {
@@ -41,10 +48,34 @@ _SUB_FR = {
     "template": "Modèle d'email",
 }
 
-# Ressources dont on sait résoudre le NOM d'après l'id du chemin : (modèle, fonction de nom).
+
+def _day(v):
+    return _DAYS[v] if isinstance(v, int) and 0 <= v < 7 else str(v)
+
+
+# Champs « diffables » par entité : (attribut, libellé FR, formatteur d'affichage).
+_CLIENT_FIELDS = [
+    ("name", "Nom", str),
+    ("company", "Entreprise", lambda v: v or "—"),
+    ("contact_name", "Contact", lambda v: v or "—"),
+    ("phone", "Téléphone", lambda v: v or "—"),
+    ("emails", "Emails", lambda v: ", ".join(v) if v else "—"),
+    ("meta_business_id", "Portefeuille", lambda v: v or "—"),
+    ("managed_campaign_ids", "Campagnes gérées", lambda v: str(len(v or []))),
+    ("report_day", "Jour d'envoi", _day),
+    ("is_active", "Actif", lambda v: "Oui" if v else "Non"),
+]
+_USER_FIELDS = [
+    ("firstname", "Prénom", str),
+    ("lastname", "Nom", str),
+    ("email", "Email", str),
+    ("role", "Rôle", str),
+]
+
+# Ressources dont on sait résoudre le NOM et le DIFF : (modèle, fonction de nom, champs).
 _ENTITIES = {
-    "clients": (Client, lambda c: c.name),
-    "users": (User, lambda u: f"{u.firstname} {u.lastname}".strip()),
+    "clients": (Client, lambda c: c.name, _CLIENT_FIELDS),
+    "users": (User, lambda u: f"{u.firstname} {u.lastname}".strip(), _USER_FIELDS),
 }
 
 
@@ -96,22 +127,51 @@ def humanize(method: str, path: str, target_name: str | None = None) -> str:
     return f"{_VERBS.get(method, method)} — {who}"
 
 
-def resolve_name(path: str) -> str | None:
-    """Nom de l'entité visée (best-effort) d'après le chemin ; None si inconnue/introuvable.
+def _safe(fmt, value):
+    try:
+        return fmt(value)
+    except Exception:
+        return str(value)
 
-    À appeler AVANT la requête pour un DELETE (l'entité n'existe plus après).
-    """
+
+def _safe_name(name_fn, obj) -> str | None:
+    try:
+        return name_fn(obj)
+    except Exception:
+        return None
+
+
+def _diff(before: dict, obj, fields) -> list[dict]:
+    """Liste des changements {field, before, after} entre un snapshot et l'état actuel de l'objet."""
+    changes: list[dict] = []
+    for attr, label, fmt in fields:
+        old = before.get(attr)
+        new = getattr(obj, attr, None)
+        if old != new:
+            changes.append({"field": label, "before": _safe(fmt, old), "after": _safe(fmt, new)})
+    return changes
+
+
+def capture_before(method: str, path: str) -> dict:
+    """État à capturer AVANT la requête (nom pour un DELETE ; snapshot pour une modif). {} sinon."""
+    if method not in AUDITED_METHODS - {"POST"}:
+        return {}
     resource, entity_id, _sub = _parse_path(path)
     entry = _ENTITIES.get(resource or "")
     if not entry or not entity_id:
-        return None
-    model, name_fn = entry
+        return {}
+    model, name_fn, fields = entry
     db = SessionLocal()
     try:
         obj = db.get(model, int(entity_id))
-        return name_fn(obj) if obj else None
+        if obj is None:
+            return {}
+        before = {"name": _safe_name(name_fn, obj)}
+        if method in _UPDATE_METHODS:
+            before["snapshot"] = {attr: getattr(obj, attr, None) for attr, _l, _f in fields}
+        return before
     except Exception:
-        return None
+        return {}
     finally:
         db.close()
 
@@ -122,12 +182,25 @@ def record_audit(
     status_code: int,
     request_id: str | None,
     auth_header: str | None,
-    target_name: str | None = None,
+    before: dict | None = None,
 ) -> None:
-    """Écrit une ligne d'audit (best-effort : avale toute erreur pour ne pas casser la requête)."""
+    """Écrit une ligne d'audit (best-effort). `before` = état capturé avant la requête (cf. capture_before)."""
+    before = before or {}
     actor = actor_from_auth(auth_header)
+    resource, entity_id, _sub = _parse_path(path)
+    entry = _ENTITIES.get(resource or "")
+    name = before.get("name")
+    changes = None
     db = SessionLocal()
     try:
+        # Pour une entité connue (hors DELETE), on relit l'état APRÈS : nom à jour + diff si modif réussie.
+        if entry and entity_id and method != "DELETE":
+            model, name_fn, fields = entry
+            obj = db.get(model, int(entity_id))
+            if obj is not None:
+                name = _safe_name(name_fn, obj)
+                if method in _UPDATE_METHODS and "snapshot" in before and 200 <= status_code < 300:
+                    changes = _diff(before["snapshot"], obj, fields) or None
         db.add(
             AuditLog(
                 actor_id=actor.get("id"),
@@ -135,9 +208,10 @@ def record_audit(
                 actor_role=actor.get("role"),
                 method=method,
                 path=path,
-                action=humanize(method, path, target_name),
+                action=humanize(method, path, name),
                 status_code=status_code,
                 request_id=request_id,
+                changes=changes,
             )
         )
         db.commit()
