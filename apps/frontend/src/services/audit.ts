@@ -1,5 +1,11 @@
 import { clientApi } from "./api";
 
+export interface AuditChange {
+  field: string;
+  before: string;
+  after: string;
+}
+
 export interface AuditLog {
   id: number;
   actor_id: number | null;
@@ -8,6 +14,8 @@ export interface AuditLog {
   method: string;
   path: string;
   action: string;
+  /** Diff champ par champ pour les modifications client/utilisateur. */
+  changes: AuditChange[] | null;
   status_code: number;
   request_id: string | null;
   created_at: string;

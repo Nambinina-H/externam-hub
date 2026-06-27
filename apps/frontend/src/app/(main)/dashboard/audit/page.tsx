@@ -182,7 +182,19 @@ export default function AuditPage() {
                       </span>
                     ) : null}
                   </TableCell>
-                  <TableCell className="font-medium">{log.action}</TableCell>
+                  <TableCell className="font-medium">
+                    {log.action}
+                    {log.changes && log.changes.length > 0 ? (
+                      <ul className="mt-1 space-y-0.5">
+                        {log.changes.map((c) => (
+                          <li key={c.field} className="font-normal text-muted-foreground text-xs">
+                            {c.field} : <span className="line-through">{c.before}</span> →{" "}
+                            <span className="text-foreground">{c.after}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={cn("rounded px-1.5 py-0.5 font-mono text-xs", METHOD_CLASS[log.method] ?? "bg-muted")}
