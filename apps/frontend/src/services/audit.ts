@@ -20,7 +20,25 @@ interface Page<T> {
   size: number;
 }
 
+export interface AuditFilters {
+  page?: number;
+  size?: number;
+  /** Sous-chaîne d'email d'acteur. */
+  actor?: string;
+  /** Méthode HTTP exacte (POST, DELETE…). */
+  method?: string;
+  /** Date ISO (YYYY-MM-DD) incluse. */
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 /** Journal d'audit (admin uniquement) — actions mutantes, les plus récentes d'abord. */
-export function listAuditLogs(page = 1, size = 50) {
-  return clientApi<Page<AuditLog>>(`/audit?page=${page}&size=${size}`);
+export function listAuditLogs(filters: AuditFilters = {}) {
+  const { page = 1, size = 50, actor, method, dateFrom, dateTo } = filters;
+  const q = new URLSearchParams({ page: String(page), size: String(size) });
+  if (actor) q.set("actor", actor);
+  if (method) q.set("method", method);
+  if (dateFrom) q.set("date_from", dateFrom);
+  if (dateTo) q.set("date_to", dateTo);
+  return clientApi<Page<AuditLog>>(`/audit?${q.toString()}`);
 }

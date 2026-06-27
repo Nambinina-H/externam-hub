@@ -20,11 +20,21 @@ def test_audit_helpers():
     assert is_auditable("GET", "/api/clients") is False  # lectures non journalisées
     assert is_auditable("POST", "/api/audit") is False  # consulter le journal n'est pas une action
     assert is_auditable("POST", "/health") is False
-    assert "Suppression" in humanize("DELETE", "/api/clients/1")
-    assert "Création" in humanize("POST", "/api/clients")
-    assert "send-report" in humanize("POST", "/api/clients/5/send-report")
     assert actor_from_auth(None) == {}
     assert actor_from_auth("Bearer pas-un-vrai-token") == {}
+
+
+def test_audit_humanize_labels():
+    from app.modules.audit.recorder import humanize
+
+    # Libellés métier, avec le NOM de l'entité quand il est résolu.
+    assert humanize("DELETE", "/api/clients/9", "William Bouzemarene") == "Suppression — client « William Bouzemarene »"
+    assert humanize("PATCH", "/api/users/3", "Jean Dupont") == "Modification — utilisateur « Jean Dupont »"
+    assert humanize("POST", "/api/clients/5/send-report", "Best Energy") == "Envoi du rapport — client « Best Energy »"
+    # Sans nom résolu : type + id, ou libellé d'action seul.
+    assert humanize("POST", "/api/clients") == "Création — client"
+    assert humanize("DELETE", "/api/clients/1") == "Suppression — client #1"
+    assert humanize("POST", "/api/reports/send-day") == "Envoi groupé des rapports"
 
 
 def test_audit_admin_only(client, db_session):
@@ -64,3 +74,28 @@ def test_audit_lists_recent_first(client, db_session):
     # Filtre par méthode.
     only_delete = client.get("/api/audit?method=DELETE", headers=_auth(token)).json()
     assert all(item["method"] == "DELETE" for item in only_delete["items"])
+
+
+def test_audit_filters_actor_and_date(client, db_session):
+    from datetime import datetime, timezone
+
+    from app.modules.audit.repository import AuditRepository
+
+    repo = AuditRepository(db_session)
+    repo.create(
+        method="POST", path="/api/clients", action="Création — client", status_code=201,
+        actor_email="alice@x.com", created_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+    )
+    repo.create(
+        method="DELETE", path="/api/clients/9", action="Suppression — client", status_code=204,
+        actor_email="bob@x.com", created_at=datetime(2026, 6, 22, 10, 0, tzinfo=timezone.utc),
+    )
+    token = _admin_token(client, db_session)
+
+    by_actor = client.get("/api/audit?actor=alice", headers=_auth(token)).json()
+    assert by_actor["total"] >= 1
+    assert all("alice" in (i["actor_email"] or "") for i in by_actor["items"])
+
+    since = client.get("/api/audit?date_from=2026-06-22", headers=_auth(token)).json()
+    assert all(i["path"] == "/api/clients/9" for i in since["items"])
+    assert all("alice" not in (i["actor_email"] or "") for i in since["items"])
