@@ -3,6 +3,7 @@ import {
   Banknote,
   Clapperboard,
   Fingerprint,
+  History,
   type LucideIcon,
   Mail,
   Megaphone,
@@ -91,7 +92,10 @@ export const spaces: NavSpace[] = [
       {
         id: 1,
         label: "Équipe",
-        items: [{ title: "Utilisateurs", url: "/dashboard/users", icon: Fingerprint }],
+        items: [
+          { title: "Utilisateurs", url: "/dashboard/users", icon: Fingerprint },
+          { title: "Journal d'activité", url: "/dashboard/audit", icon: History },
+        ],
       },
     ],
   },

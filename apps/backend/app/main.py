@@ -4,13 +4,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import get_settings
-from app.db.base import engine
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
+from app.db.base import engine
 from app.modules.ads.router import router as ads_router
+from app.modules.audit.recorder import is_auditable, record_audit
+from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.clients.router import router as clients_router
 from app.modules.reports.router import router as reports_router
@@ -67,6 +70,22 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def audit_requests(request: Request, call_next):
+    """Journalise automatiquement chaque action mutante (best-effort, désactivé en test)."""
+    response = await call_next(request)
+    if settings.environment != "test" and is_auditable(request.method, request.url.path):
+        await run_in_threadpool(
+            record_audit,
+            request.method,
+            request.url.path,
+            response.status_code,
+            response.headers.get("x-request-id"),
+            request.headers.get("authorization"),
+        )
+    return response
+
+
 @app.get("/health", tags=["Health"])
 def health() -> dict:
     db_ok = True
@@ -89,3 +108,4 @@ app.include_router(clients_router, prefix="/api")
 app.include_router(ads_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(audit_router, prefix="/api")
