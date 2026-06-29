@@ -133,10 +133,12 @@ export function MailSentbox() {
     }
   }
 
+  // Seuls les clients actifs reçoivent un rapport : on ne liste qu'eux dans la Boîte d'envoi.
   const q = query.trim().toLowerCase();
+  const active = clients.filter((c) => c.is_active);
   const filtered = q
-    ? clients.filter((c) => c.name.toLowerCase().includes(q) || c.emails.some((e) => e.toLowerCase().includes(q)))
-    : clients;
+    ? active.filter((c) => c.name.toLowerCase().includes(q) || c.emails.some((e) => e.toLowerCase().includes(q)))
+    : active;
 
   const recipientNode = selectedClient ? (
     selectedClient.emails.length ? (
