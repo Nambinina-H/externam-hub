@@ -186,22 +186,25 @@ export function MailTemplates() {
               ))}
             </div>
           ) : (
-            clients.map((client) => (
-              <button
-                key={client.id}
-                type="button"
-                onClick={() => void selectClient(client)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted/50",
-                  selection.type === "client" && selection.id === client.id && "bg-muted font-medium",
-                )}
-              >
-                <span className="truncate">{client.name}</span>
-                {overrides.includes(client.id) ? (
-                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">perso</span>
-                ) : null}
-              </button>
-            ))
+            // Seuls les clients actifs reçoivent un rapport → on ne personnalise que ceux-là.
+            clients
+              .filter((client) => client.is_active)
+              .map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => void selectClient(client)}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 border-b px-3 py-2 text-left text-sm hover:bg-muted/50",
+                    selection.type === "client" && selection.id === client.id && "bg-muted font-medium",
+                  )}
+                >
+                  <span className="truncate">{client.name}</span>
+                  {overrides.includes(client.id) ? (
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">perso</span>
+                  ) : null}
+                </button>
+              ))
           )}
         </div>
       </div>
